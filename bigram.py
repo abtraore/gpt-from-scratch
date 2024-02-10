@@ -12,6 +12,7 @@ eval_interval = 300
 learning_rate = 1e-2
 device = "cuda" if torch.cuda.is_available() else "cpu"
 eval_iters = 200
+n_embd = 32
 # --------------
 
 # Loading text.
@@ -73,15 +74,24 @@ def estimate_loss():
 # Simple bigram model.
 class BigramLanguageModel(nn.Module):
 
-    def __init__(self, vocab_size):
+    def __init__(self):
         super().__init__()
-        self.token_embedding_table = nn.Embedding(vocab_size, vocab_size)
+        self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
+        self.position_embedding_table = nn.Embedding(block_size, n_embd)
+        self.lm_head = nn.Linear(n_embd, vocab_size)
 
     def forward(self, idx, targets=None):
         # ix : (B,T).
         # targets : (B,T).
 
-        logits = self.token_embedding_table(idx)  # (B,T,C).
+        B, T = idx.shape
+
+        tok_emb = self.token_embedding_table(idx)  # (B,T,C).
+        pos_emb = self.position_embedding_table(
+            torch.arange(T, device=device)
+        )  # --> (B,T)
+        x = tok_emb + pos_emb
+        logits = self.lm_head(tok_emb)  # (B,T,vocab_size)
 
         if targets is None:
             loss = None
@@ -111,7 +121,7 @@ class BigramLanguageModel(nn.Module):
 
 
 # Instantiate the model.
-model = BigramLanguageModel(vocab_size)
+model = BigramLanguageModel()
 m = model.to(device)
 
 # Create the otimizer.
