@@ -13,6 +13,7 @@ learning_rate = 1e-3
 device = "cuda" if torch.cuda.is_available() else "cpu"
 eval_iters = 200
 n_embd = 32
+
 # --------------
 
 # Loading text.
@@ -138,10 +139,11 @@ class BigramLanguageModel(nn.Module):
         super().__init__()
         self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
         self.position_embedding_table = nn.Embedding(block_size, n_embd)
-        self.sa_head = MultiHeadAttention(
-            4, n_embd // 4
-        )  # 4 head | 8-dim self attention
-        self.ffwd = FeedForward(n_embd)
+        self.blocks = nn.Sequential(
+            Block(n_embd, n_head=4),
+            Block(n_embd, n_head=4),
+            Block(n_embd, n_head=4),
+        )
         self.lm_head = nn.Linear(n_embd, vocab_size)
 
     def forward(self, idx, targets=None):
@@ -155,8 +157,7 @@ class BigramLanguageModel(nn.Module):
             torch.arange(T, device=device)
         )  # --> (T,C)
         x = tok_emb + pos_emb
-        x = self.sa_head(x)
-        x = self.ffwd(x)
+        x = self.blocks(x)
         logits = self.lm_head(x)  # (B,T,vocab_size)
 
         if targets is None:
