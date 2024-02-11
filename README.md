@@ -38,33 +38,6 @@ Madam, his way. Come along, welcome.
 Shepherd:
 Learnty. We'll see the sea your youngness,; that's not
 so. They say, but such a plaisbing.
-
-Shepherd:
-Take your will to your gone, and shall't not off your ages,
-So please you of the heap. O, sir, you must, mine
-Must joy imports, and you and prosperish off your face
-Of neceditation more might her precious,
-Be sickness in standing, why would you speak,
-And what live children buy the air,
-Right to go the will of the king
-Golden save way to women, that you may say
-Now, but yet never told, the drop of the sea.
-The king marken'd my life doth howe
-Dare and record hath since I deposed.
-What say you do I hear? why? cause else!
-Where now, good wilf?
-
-First Servant:
-Lo, your grace? or take you, sir,
-You so reported so repeased
-Uon yet it, did not it: and yet, I,
-Were put outto depose object
-To a tapster of the secrets,
-Necedled: such a day fitness of
-Shadow down this world; and mark who 'tis my fond,
-Supply but there's month that the gasp of heaven
-Tell me whereof I have nothing shall have
-All seas done to make it.
 ```
 
 The model demonstrates an ability to generate text that stylistically resembles the training data, albeit without coherent meaning. This outcome is partly due to the use of character-level tokenization, which, while simpler, lacks the sophistication of more advanced tokenization methods. Improvements in tokenization and a more comprehensive pretraining phase could potentially enhance the model's ability to generate meaningful text.
