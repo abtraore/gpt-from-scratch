@@ -6,7 +6,7 @@ from torch.nn import functional as F
 # Hyperparameters.
 batch_size = 64
 block_size = 256
-max_iters = 5000
+max_iters = 1
 eval_interval = 500
 learning_rate = 3e-4
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -26,8 +26,6 @@ with open("input.txt", "r") as f:
 # Creating the vocabulary.
 chars = sorted(list(set(text)))
 vocab_size = len(chars)
-print("".join(chars))
-print(vocab_size)
 
 # Make encoder and decoder.
 stoi = {ch: i for i, ch in enumerate(chars)}
@@ -37,7 +35,6 @@ decode = lambda l: "".join([itos[i] for i in l])
 
 # Encode the whole dataset.
 data = torch.tensor(encode(text), dtype=torch.long)
-print(data.shape, data.dtype)
 
 
 # Split train/val.
@@ -63,7 +60,6 @@ def get_batch(split):
 def estimate_loss():
     out = {}
     model.eval()
-
     for split in ["train", "val"]:
         losses = torch.zeros(eval_iters)
         for k in range(eval_iters):
@@ -73,6 +69,36 @@ def estimate_loss():
         out[split] = losses.mean()
     model.train()
     return out
+
+
+class Head(nn.Module):
+    def __init__(self, head_size):
+        super().__init__()
+        self.key = nn.Linear(n_embd, head_size, bias=False)
+        self.query = nn.Linear(n_embd, head_size, bias=False)
+        self.value = nn.Linear(n_embd, head_size, bias=False)
+        # No parameter, so we register it as a buffer.
+        self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x):
+        B, T, C = x.shape  # C is the n_embd
+        k = self.key(x)  # --> (B,T,hs) # What I contain.
+        q = self.query(x)  # --> (B,T,hs) # What I'm I looking for ?
+
+        wei = (
+            q @ k.transpose(-2, -1) * k.shape[-1] ** -0.5
+        )  # (B,T,hs) @ (B,C,hs) --> (B,T,T) | Affinity matrix
+
+        wei = wei.masked_fill(self.tril[:T, :T] == 0, float("-inf"))
+        wei = F.softmax(wei, dim=-1)
+        wei = self.dropout(wei)
+        # Aggregate values.
+        v = self.value(x)  # (B, T, hs)
+        out = (
+            wei @ v
+        )  #  # (B, T, T) @ (B, T, hs) -> (B, T, hs) | If you find me interresting, here what I can give.
+        return out
 
 
 class MultiHeadAttention(nn.Module):
@@ -108,33 +134,6 @@ class FeedForward(nn.Module):
         return self.net(x)
 
 
-class Head(nn.Module):
-    def __init__(self, head_size):
-        super().__init__()
-        self.key = nn.Linear(n_embd, head_size, bias=False)
-        self.query = nn.Linear(n_embd, head_size, bias=False)
-        self.value = nn.Linear(n_embd, head_size, bias=False)
-        # No parameter, so we register it as a buffer.
-        self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
-        self.dropout = nn.Dropout(dropout)
-
-    def forward(self, x):
-        B, T, C = x.shape  # C is the n_embd
-        k = self.key(x)  # --> (B,T,C) # What I contain.
-        q = self.query(x)  # --> (B,T,C) # What I'm I looking for ?
-
-        wei = (
-            q @ k.transpose(-2, -1) * C**0.5
-        )  # (B,T,C) @ (B,C,T) --> (B,T,T) | Affinity matrix
-
-        wei = wei.masked_fill(self.tril[:T, :T] == 0, float("-inf"))
-        wei = F.softmax(wei, dim=-1)
-        wei = self.dropout(wei)
-        v = self.value(x)
-        out = wei @ v  # If you find me interresting, here what I can give.
-        return out
-
-
 class Block(nn.Module):
     def __init__(self, n_embd, n_head):
         super().__init__()
@@ -147,6 +146,7 @@ class Block(nn.Module):
 
     def forward(self, x):
         # x + are the residual connections.
+        # In the litterature, layernorms come after self-attention and feed-forward nowadays.
         x = x + self.sa(self.ln1(x))
         x = x + self.ffwd(self.ln2(x))
         return x
@@ -164,6 +164,17 @@ class BigramLanguageModel(nn.Module):
         )
         self.ln_f = nn.LayerNorm(n_embd)
         self.lm_head = nn.Linear(n_embd, vocab_size)
+
+        # Not covered in the original GPT video.
+        self.apply(self._init_weights)
+
+    def _init_weights(self, module):
+        if isinstance(module, nn.Linear):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            if module.bias is not None:
+                torch.nn.init.zeros_(module.bias)
+        elif isinstance(module, nn.Embedding):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
     def forward(self, idx, targets=None):
         # ix : (B,T).
@@ -221,7 +232,7 @@ optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 # Training Loop.
 for iter in range(max_iters):
 
-    if iter % eval_interval == 0:
+    if iter % eval_interval == 0 or iter == max_iters - 1:
         losses = estimate_loss()
         print(
             f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4}"
@@ -233,6 +244,13 @@ for iter in range(max_iters):
     loss.backward()
     optimizer.step()
 
+
 # Generate from the model
 context = torch.zeros((1, 1), dtype=torch.long, device=device)
 print(decode(m.generate(context, max_new_tokens=500)[0].tolist()))
+open("shakespeare.txt", "w").write(
+    decode(m.generate(context, max_new_tokens=500)[0].tolist())
+)
+
+model = model.cpu()
+torch.save(model.state_dict(), "weights/shakespeare.pt")
