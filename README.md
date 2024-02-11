@@ -1,5 +1,3 @@
-Your project overview and implementation results are well-described. However, there are a few adjustments and clarifications I'd suggest for your README file to enhance clarity and correctness. Here's a revised version:
-
 # GPT from Scratch
 
 This project aims to understand and implement a basic Generative Pre-trained Transformer (GPT) model. Following Andrej Karpathy's instructional video, ["Let's build GPT: from scratch, in code, spelled out."](https://www.youtube.com/watch?v=kCc8FmEb1nY&t=3656s), I developed a foundational understanding and constructed an initial version of a GPT model. This video serves as a comprehensive guide for building a GPT model from scratch. To further refine my implementation, I consulted the [official GitHub repository](https://github.com/karpathy/ng-video-lecture/tree/master) associated with Karpathy's lecture. I noted several significant updates in the repository, including adjustments to the learning rate, changes to certain axes' naming conventions, and the addition of a weight initialization function. These updates were integrated into my project to align with the latest recommendations.
