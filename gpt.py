@@ -6,7 +6,7 @@ from torch.nn import functional as F
 # Hyperparameters.
 batch_size = 64
 block_size = 256
-max_iters = 1
+max_iters = 5000
 eval_interval = 500
 learning_rate = 3e-4
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -249,7 +249,7 @@ for iter in range(max_iters):
 context = torch.zeros((1, 1), dtype=torch.long, device=device)
 print(decode(m.generate(context, max_new_tokens=500)[0].tolist()))
 open("shakespeare.txt", "w").write(
-    decode(m.generate(context, max_new_tokens=500)[0].tolist())
+    decode(m.generate(context, max_new_tokens=10000)[0].tolist())
 )
 
 model = model.cpu()
